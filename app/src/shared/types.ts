@@ -34,11 +34,23 @@ export interface Preferences {
   theme: ThemePreference;
 }
 
+export interface SavedPrompt {
+  id: string;
+  name: string;
+  templateId: string;
+  templateName: string;
+  drafts: Record<string, string>;
+  output: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface AppData {
   version: number;
   tags: Tag[];
   templates: Template[];
   preferences: Preferences;
+  savedPrompts: SavedPrompt[];
 }
 
 export const TAG_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;

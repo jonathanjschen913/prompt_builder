@@ -96,5 +96,6 @@ export function buildDefaultAppData(): AppData {
       windowBounds: null,
       theme: 'system',
     },
+    savedPrompts: [],
   };
 }

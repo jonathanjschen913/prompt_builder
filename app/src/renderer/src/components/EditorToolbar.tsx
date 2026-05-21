@@ -1,10 +1,12 @@
-import { CopyIcon } from './icons';
+import { BookmarkIcon, CopyIcon } from './icons';
 
 interface EditorToolbarProps {
   previewOpen: boolean;
   onTogglePreview: () => void;
   onGenerate: () => void;
   onClear: () => void;
+  onSavePrompt: () => void;
+  canSavePrompt: boolean;
   disabled?: boolean;
 }
 
@@ -13,6 +15,8 @@ export function EditorToolbar({
   onTogglePreview,
   onGenerate,
   onClear,
+  onSavePrompt,
+  canSavePrompt,
   disabled,
 }: EditorToolbarProps) {
   return (
@@ -27,6 +31,15 @@ export function EditorToolbar({
         </button>
       </div>
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onSavePrompt}
+          disabled={disabled || !canSavePrompt}
+          title={canSavePrompt ? 'Save current prompt' : 'Fill in at least one field to save'}
+          className="inline-flex items-center gap-1.5 rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          <BookmarkIcon /> Save Prompt
+        </button>
         <button
           type="button"
           onClick={onClear}

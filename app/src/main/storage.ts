@@ -47,6 +47,9 @@ function normalize(data: AppData): AppData {
   if (!data.preferences.theme) {
     data.preferences.theme = 'system';
   }
+  if (!Array.isArray(data.savedPrompts)) {
+    data.savedPrompts = [];
+  }
   return data;
 }
 

@@ -7,6 +7,7 @@ import { Sidebar } from './components/Sidebar';
 import { Editor } from './components/Editor';
 import { TagManager } from './components/TagManager';
 import { TemplateEditor } from './components/TemplateEditor';
+import { SavedPrompts } from './components/SavedPrompts';
 import { Settings } from './components/Settings';
 import { ToastHost } from './components/ToastHost';
 import { toast } from './components/toast';
@@ -33,10 +34,11 @@ export default function App() {
 
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [templateEditor, setTemplateEditor] = useState<TemplateEditorState>({ open: false });
+  const [savedPromptsOpen, setSavedPromptsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const anyModalOpen =
-    tagManagerOpen || templateEditor.open || settingsOpen;
+    tagManagerOpen || templateEditor.open || savedPromptsOpen || settingsOpen;
 
   const openNewTemplate = useCallback(() => {
     setTemplateEditor({ open: true, mode: 'create' });
@@ -108,11 +110,13 @@ export default function App() {
       <Sidebar
         onNewTemplate={openNewTemplate}
         onManageTags={() => setTagManagerOpen(true)}
+        onOpenSavedPrompts={() => setSavedPromptsOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
       />
       <Editor onEditTemplateTags={editorMemoizedOpen} />
 
       <TagManager open={tagManagerOpen} onClose={() => setTagManagerOpen(false)} />
+      <SavedPrompts open={savedPromptsOpen} onClose={() => setSavedPromptsOpen(false)} />
       <TemplateEditor
         open={templateEditor.open}
         mode={templateEditor.open ? templateEditor.mode : 'create'}

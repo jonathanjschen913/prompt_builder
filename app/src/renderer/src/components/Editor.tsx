@@ -41,6 +41,7 @@ export function Editor({ onEditTemplateTags }: EditorProps) {
   const attachTagByNameToTemplate = useAppStore((s) => s.attachTagByNameToTemplate);
   const removeTagFromTemplatePosition = useAppStore((s) => s.removeTagFromTemplatePosition);
   const reorderTagInTemplate = useAppStore((s) => s.reorderTagInTemplate);
+  const saveCurrentPrompt = useAppStore((s) => s.saveCurrentPrompt);
   const undoAction = useAppStore((s) => s.undo);
   const redoAction = useAppStore((s) => s.redo);
   const undoStack = useAppStore((s) => s.undoStack);
@@ -156,6 +157,15 @@ export function Editor({ onEditTemplateTags }: EditorProps) {
     if (entry) toast(`Redid: ${entry.description}`, 'info');
   };
 
+  const handleSavePrompt = () => {
+    const prompt = saveCurrentPrompt();
+    if (!prompt) {
+      toast('Nothing to save — fill in at least one field.', 'warn');
+      return;
+    }
+    toast(`Saved as "${prompt.name}"`, 'success');
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -257,6 +267,8 @@ export function Editor({ onEditTemplateTags }: EditorProps) {
         onTogglePreview={() => setPreviewOpen((p) => !p)}
         onGenerate={handleGenerate}
         onClear={handleClear}
+        onSavePrompt={handleSavePrompt}
+        canSavePrompt={liveOutput.length > 0}
       />
       <ConfirmDialog
         open={confirmDelete}

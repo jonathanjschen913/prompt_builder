@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { AppData, Tag, Template, ThemePreference } from '@shared/types';
+import type { AppData, SavedPrompt, Tag, Template, ThemePreference } from '@shared/types';
+import { generatePrompt } from './lib/generate';
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 const PERSIST_DEBOUNCE_MS = 250;
@@ -46,6 +47,11 @@ export interface AttachByNameResult {
   created: boolean;
 }
 
+export type LoadSavedPromptResult =
+  | { kind: 'restored'; prompt: SavedPrompt }
+  | { kind: 'template_missing'; prompt: SavedPrompt }
+  | { kind: 'not_found' };
+
 export interface AppState {
   ready: boolean;
   tags: Tag[];
@@ -55,6 +61,7 @@ export interface AppState {
   theme: ThemePreference;
   undoStack: UndoEntry[];
   redoStack: UndoEntry[];
+  savedPrompts: SavedPrompt[];
 
   hydrate: () => Promise<void>;
   selectTemplate: (id: string) => void;
@@ -77,6 +84,11 @@ export interface AppState {
   reorderTagInTemplate: (templateId: string, fromIndex: number, toIndex: number) => void;
   reorderTemplates: (fromId: string, toId: string) => void;
 
+  saveCurrentPrompt: () => SavedPrompt | null;
+  renameSavedPrompt: (id: string, name: string) => void;
+  deleteSavedPrompt: (id: string) => void;
+  loadSavedPrompt: (id: string) => LoadSavedPromptResult;
+
   undo: () => UndoEntry | null;
   redo: () => UndoEntry | null;
   replaceAll: (data: AppData) => void;
@@ -93,7 +105,15 @@ function snapshotForPersist(state: AppState): AppData {
       windowBounds: null,
       theme: state.theme,
     },
+    savedPrompts: state.savedPrompts,
   };
+}
+
+function defaultSavedPromptName(templateName: string, existing: SavedPrompt[]): string {
+  let n = 1;
+  const taken = new Set(existing.map((p) => p.name.toLowerCase()));
+  while (taken.has(`${templateName.toLowerCase()} ${n}`)) n++;
+  return `${templateName} ${n}`;
 }
 
 function schedulePersist(getState: () => AppState): void {
@@ -138,6 +158,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   theme: 'system',
   undoStack: [],
   redoStack: [],
+  savedPrompts: [],
 
   async hydrate() {
     const data = await window.api.loadData();
@@ -149,6 +170,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       theme: data.preferences.theme ?? 'system',
       undoStack: [],
       redoStack: [],
+      savedPrompts: data.savedPrompts ?? [],
       ready: true,
     });
   },
@@ -601,6 +623,68 @@ export const useAppStore = create<AppState>((set, get) => ({
     return entry;
   },
 
+  saveCurrentPrompt() {
+    const s = get();
+    if (!s.activeTemplateId) return null;
+    const tpl = s.templates.find((t) => t.id === s.activeTemplateId);
+    if (!tpl) return null;
+    const tagsById = new Map(s.tags.map((t) => [t.id, t]));
+    const perTpl = s.drafts[tpl.id] ?? {};
+    const { output } = generatePrompt(tpl, tagsById, perTpl);
+    if (!output) return null;
+    const now = Date.now();
+    const prompt: SavedPrompt = {
+      id: uuid(),
+      name: defaultSavedPromptName(tpl.name, s.savedPrompts),
+      templateId: tpl.id,
+      templateName: tpl.name,
+      drafts: { ...perTpl },
+      output,
+      createdAt: now,
+      updatedAt: now,
+    };
+    set((st) => ({ savedPrompts: [...st.savedPrompts, prompt] }));
+    schedulePersist(get);
+    return prompt;
+  },
+
+  renameSavedPrompt(id, name) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    set((s) => ({
+      savedPrompts: s.savedPrompts.map((p) =>
+        p.id === id ? { ...p, name: trimmed, updatedAt: Date.now() } : p
+      ),
+    }));
+    schedulePersist(get);
+  },
+
+  deleteSavedPrompt(id) {
+    set((s) => ({ savedPrompts: s.savedPrompts.filter((p) => p.id !== id) }));
+    schedulePersist(get);
+  },
+
+  loadSavedPrompt(id) {
+    const s = get();
+    const prompt = s.savedPrompts.find((p) => p.id === id);
+    if (!prompt) return { kind: 'not_found' };
+    const tpl = s.templates.find((t) => t.id === prompt.templateId);
+    if (!tpl) return { kind: 'template_missing', prompt };
+    set((st) => {
+      const drafts = { ...st.drafts };
+      if (Object.keys(prompt.drafts).length === 0) delete drafts[tpl.id];
+      else drafts[tpl.id] = { ...prompt.drafts };
+      return {
+        activeTemplateId: tpl.id,
+        drafts,
+        undoStack: st.undoStack.filter((e) => e.templateId !== tpl.id),
+        redoStack: st.redoStack.filter((e) => e.templateId !== tpl.id),
+      };
+    });
+    schedulePersist(get);
+    return { kind: 'restored', prompt };
+  },
+
   replaceAll(data) {
     set({
       tags: data.tags,
@@ -610,6 +694,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       theme: data.preferences.theme ?? 'system',
       undoStack: [],
       redoStack: [],
+      savedPrompts: data.savedPrompts ?? [],
     });
     schedulePersist(get);
   },

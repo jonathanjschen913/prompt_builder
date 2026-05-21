@@ -16,16 +16,22 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Template } from '@shared/types';
 import { useAppStore } from '../store';
 import { validateTemplateName } from '../lib/validate';
-import { DragIcon, PencilIcon, PlusIcon, SettingsIcon } from './icons';
+import { BookmarkIcon, DragIcon, PencilIcon, PlusIcon, SettingsIcon } from './icons';
 import { toast } from './toast';
 
 interface SidebarProps {
   onNewTemplate: () => void;
   onManageTags: () => void;
+  onOpenSavedPrompts: () => void;
   onOpenSettings: () => void;
 }
 
-export function Sidebar({ onNewTemplate, onManageTags, onOpenSettings }: SidebarProps) {
+export function Sidebar({
+  onNewTemplate,
+  onManageTags,
+  onOpenSavedPrompts,
+  onOpenSettings,
+}: SidebarProps) {
   const templates = useAppStore((s) => s.templates);
   const activeId = useAppStore((s) => s.activeTemplateId);
   const selectTemplate = useAppStore((s) => s.selectTemplate);
@@ -114,6 +120,13 @@ export function Sidebar({ onNewTemplate, onManageTags, onOpenSettings }: Sidebar
           className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:text-slate-200 dark:hover:bg-slate-800"
         >
           <PlusIcon /> New Template
+        </button>
+        <button
+          type="button"
+          onClick={onOpenSavedPrompts}
+          className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-200 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          <BookmarkIcon /> Saved Prompts
         </button>
         <button
           type="button"
