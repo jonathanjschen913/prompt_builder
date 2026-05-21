@@ -1,6 +1,9 @@
 # Local Claude Code session state — do not commit
 .claude/
 
+# Local working spec — kept out of the public repo
+plan.txt
+
 # OS / editor
 .DS_Store
 Thumbs.db
