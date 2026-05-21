@@ -1,6 +1,8 @@
-# Prompt Builder
+# Prompt Builder — a local desktop app for authoring XML-tagged LLM prompts
 
-A local, offline Windows desktop app for authoring structured LLM prompts using XML-style tags. Pick a template, fill the inputs, hit **Generate & Copy**, paste anywhere.
+An offline **XML prompt builder** for Windows. Compose structured, tag-based prompts for Claude, ChatGPT, Gemini, or any other LLM using XML-style tags like `<instruction>`, `<context>`, and `<output_format>` — a recommended prompt-engineering practice for Anthropic's Claude that disambiguates sections of a prompt and improves output quality.
+
+Pick a template, fill the inputs, hit **Generate & Copy**, paste anywhere. No accounts, no network calls, no telemetry — your prompts never leave your machine.
 
 ## Download
 
