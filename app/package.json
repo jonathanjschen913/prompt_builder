@@ -1,6 +1,6 @@
 {
   "name": "prompt-builder",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Local desktop app for authoring structured LLM prompts with XML-style tags.",
   "main": "out/main/index.js",
   "author": "Prompt Builder",
@@ -35,9 +35,11 @@
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
     "electron-vite": "^2.3.0",
+    "png-to-ico": "^3.0.1",
     "postcss": "^8.4.49",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
     "vite": "^5.4.11"

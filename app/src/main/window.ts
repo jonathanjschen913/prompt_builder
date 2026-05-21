@@ -1,7 +1,17 @@
 import { BrowserWindow, screen, shell, app } from 'electron';
-import { join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import type { WindowBounds } from '@shared/types';
 import { getInMemoryData, scheduleSave } from './storage';
+
+function resolveIconPath(): string | undefined {
+  // Packaged build: icon is embedded in the exe by electron-builder.
+  // Dev build: load resources/icon.ico from the repo so the taskbar
+  // and Alt-Tab tile show the gear during `npm run dev`.
+  if (app.isPackaged) return undefined;
+  const devIcon = resolve(__dirname, '../../resources/icon.ico');
+  return existsSync(devIcon) ? devIcon : undefined;
+}
 
 const DEFAULT_BOUNDS: WindowBounds = {
   x: -1,
@@ -40,6 +50,7 @@ export function createMainWindow(): BrowserWindow {
     autoHideMenuBar: true,
     title: 'Prompt Builder',
     backgroundColor: '#0f172a',
+    icon: resolveIconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
