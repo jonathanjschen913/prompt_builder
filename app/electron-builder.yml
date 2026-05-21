@@ -1,0 +1,29 @@
+appId: com.promptbuilder.app
+productName: Prompt Builder
+copyright: ""
+asar: true
+directories:
+  buildResources: resources
+  output: release
+files:
+  - out/**/*
+  - package.json
+extraMetadata:
+  main: out/main/index.js
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: resources/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Prompt Builder
+  artifactName: ${productName} Setup ${version}.${ext}
+portable:
+  artifactName: ${productName} Portable ${version}.${ext}

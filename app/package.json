@@ -1,0 +1,45 @@
+{
+  "name": "prompt-builder",
+  "version": "0.1.0",
+  "description": "Local desktop app for authoring structured LLM prompts with XML-style tags.",
+  "main": "out/main/index.js",
+  "author": "Prompt Builder",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "icon": "node scripts/make-icon.cjs",
+    "build": "npm run icon && electron-vite build && electron-builder",
+    "build:dir": "npm run icon && electron-vite build && electron-builder --dir",
+    "build:win": "npm run icon && electron-vite build && electron-builder --win",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^8.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.49",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  }
+}

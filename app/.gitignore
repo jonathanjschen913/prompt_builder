@@ -1,0 +1,10 @@
+node_modules
+out
+out-tsc
+dist
+release
+*.log
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
