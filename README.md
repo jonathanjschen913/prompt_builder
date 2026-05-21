@@ -31,7 +31,7 @@ npm install
 npm run build
 ```
 
-The same two artifacts land in `app\release\`.
+The same two .exe artifacts land in `app\release\`; from there you can again simply run the installers and get the electron app.
 
 ## What it is
 
