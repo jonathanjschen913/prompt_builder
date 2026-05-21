@@ -240,3 +240,38 @@ Visual feedback (border flash) on the textarea(s) that contributed to a successf
 5. All persistence, clipboard, and IPC working end-to-end.
 Build the simplest version that satisfies the spec. Do not add features not listed here. Prioritize correctness and a clean UI over feature breadth.
 </deliverables>
+
+<resolved_decisions>
+The following ambiguities were resolved during planning. These supersede or clarify the spec above.
+
+1. Scaffold base: use `electron-vite` (React + TypeScript template).
+
+2. Drag-and-drop: use `dnd-kit` for the template tag reorder UI.
+
+3. Icon: generate a simple placeholder `.ico` (e.g., "PB" letters on a colored square). User can swap later.
+
+4. UUIDs: use built-in `crypto.randomUUID()`. Do NOT add the `uuid` npm package.
+
+5. Toast: implement a small in-house toast component. Do NOT add a toast library.
+
+6. Drafts keying: drafts are keyed by **position index within the template**, not by `tagId`. This means if a template contains the same tag twice, each position has its own independent draft. The persistence schema's `preferences.drafts[templateId]` is keyed by position index (e.g., `"0"`, `"1"`, `"2"`) instead of `tagId`.
+
+7. Nice-to-haves: implement ALL FOUR:
+   - Dark mode (system-preference detection + toggle in a small settings menu).
+   - Export/import the full `data.json` from a menu.
+   - Syntax-style highlighting in the Preview panel (tag names in a distinct color from content).
+   - Visual feedback (border flash) on the textarea(s) that contributed to a successful copy.
+
+8. Template "Reset" semantics: in the template-edit modal, the "Reset" button means **revert to the last saved state for that template** (discards unsaved edits in the modal and reloads from `data.json`). Applies to both built-in and user-created templates. This replaces the spec's "Reset to default" / factory-reset-for-built-ins behavior — built-ins are no longer factory-resettable; they're edited and reverted just like user templates. The Reset action MUST show a confirmation dialog ("Are you sure? Unsaved changes will be lost.") before discarding edits.
+
+9. Window state persistence: store window bounds (size + position) inside `data.json` under `preferences` (e.g., `preferences.windowBounds = { x, y, width, height }`). Do NOT create a separate `window-state.json`.
+
+10. Repo layout: scaffold the Electron app into a `app/` subfolder of the repo (`C:\Users\jonat\Desktop\Prompt_Builder\app\`). The repo root keeps `plan.txt`, `README.md`, and any other top-level project docs.
+
+11. Toolchain:
+    - Node.js: pin `engines.node` to `>=20.11.0`. (Developer machine currently runs v24.12.0, which is compatible.)
+    - npm 10+ (bundled with Node).
+    - No native modules planned, so Visual Studio Build Tools and Python are NOT required. If a future dep ever pulls in a `binding.gyp`, install VS 2022 Build Tools (Desktop C++) + Python 3.x at that point.
+    - NSIS: downloaded automatically by `electron-builder` on first build; no manual install.
+    - No code signing.
+</resolved_decisions>
