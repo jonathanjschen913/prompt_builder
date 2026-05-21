@@ -2,11 +2,20 @@
 
 A local, offline Windows desktop app for authoring structured LLM prompts using XML-style tags. Pick a template, fill the inputs, hit **Generate & Copy**, paste anywhere.
 
-## Download / install
+## Download
 
-There are no prebuilt releases published yet, so installation means building once from source. After that, the app behaves like any other Windows desktop app — no terminal required to launch it.
+Grab a prebuilt Windows binary from the [latest release](https://github.com/jonathanjschen913/prompt_builder/releases/latest):
 
-**Prerequisites:** Windows 10/11, [Node.js](https://nodejs.org/) 20.11+ (LTS), and `git`.
+- **`Prompt Builder Setup <version>.exe`** — NSIS installer. Run once; it creates Start-menu and Desktop shortcuts.
+- **`Prompt Builder Portable <version>.exe`** — single self-contained exe. No install; double-click to run, or pin to your taskbar.
+
+Either one works on Windows 10 and 11. No Node, no terminal, no dependencies to install.
+
+> The build is **unsigned**, so the first launch will trigger Windows SmartScreen ("Windows protected your PC"). Click **More info → Run anyway**; Windows remembers your choice.
+
+### Build from source (optional)
+
+If you'd rather build it yourself, you'll need [Node.js](https://nodejs.org/) 20.11+ (LTS) and `git`:
 
 ```powershell
 git clone https://github.com/jonathanjschen913/prompt_builder.git
@@ -15,14 +24,7 @@ npm install
 npm run build
 ```
 
-That produces two artifacts in `app\release\`:
-
-- **`Prompt Builder Setup 0.1.0.exe`** — NSIS installer. Run once; it creates Start-menu and Desktop shortcuts.
-- **`Prompt Builder Portable 0.1.0.exe`** — single self-contained exe. No install; double-click to run, or pin to your taskbar.
-
-Either way, you never need to run `npm` again to launch the app.
-
-> The build is **unsigned**, so the first launch will trigger Windows SmartScreen ("Windows protected your PC"). Click **More info → Run anyway**; Windows remembers your choice.
+The same two artifacts land in `app\release\`.
 
 ## What it is
 
