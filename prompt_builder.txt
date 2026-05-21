@@ -1,0 +1,242 @@
+Prompt Builder — Build Specification
+<context>
+Build a local desktop application for authoring structured LLM prompts using XML-style tags (e.g., `<instruction>...</instruction>`, `<context>...</context>`). XML tags are a recommended prompt-engineering practice for models like Claude because they disambiguate sections of a prompt. This tool makes composing tagged prompts faster than typing tags by hand.
+The core workflow: the user picks a template, fills in input boxes that correspond to each tag in that template, clicks "Generate," and the assembled prompt is copied to their clipboard for pasting into any LLM interface (Claude.ai, ChatGPT, an API playground, a terminal-based LLM client, etc.).
+The tool does not call any LLM. It is a pure local authoring tool. All data stays on the user's machine. Output is plain text via clipboard.
+The user building this is on Windows 11 and wants to be able to share the packaged installer with friends on Windows 10/11.
+</context>
+<tech_stack>
+
+Framework: Electron (latest stable) + React + TypeScript
+Styling: Tailwind CSS
+Bundler: Vite (via electron-vite or equivalent)
+Packaging: electron-builder, targeting Windows (NSIS installer + portable .exe)
+State management: React state + Zustand (or Context if simpler)
+Persistence: Local JSON file via Electron's app.getPath('userData')
+Clipboard: Electron's built-in clipboard module
+
+Keep the dependency footprint small. No backend, no network calls, no telemetry, no analytics, no auto-updater.
+</tech_stack>
+<core_concepts>
+There are two user-managed entities:
+Tags — named XML-style tags. Each tag has:
+
+A name (e.g., instruction, context, output_format) — lowercase alphanumeric plus underscores only, used to produce <name>...</name>.
+An optional description shown as helper text near the input box (e.g., "What you want the model to do").
+An optional placeholder shown inside the empty input box.
+A flag for whether it's a built-in default tag or user-created. Built-ins cannot be deleted, only hidden.
+
+Templates — ordered collections of tags. Each template has:
+
+A name (e.g., "Standard Instruction," "Code Review," "Research Brief").
+An ordered list of tag references (the order determines both UI input order and concatenation order in the final output).
+An optional description.
+A flag for built-in vs. user-created.
+
+When a user selects a template, the UI dynamically renders one labeled, multi-line input box per tag in that template, in order. A template may include the same tag more than once (e.g., two example blocks).
+</core_concepts>
+<default_content>
+Seed the app on first launch with these defaults.
+Default tags:
+
+instruction — desc: "What you want the model to do." placeholder: "e.g., Summarize the document below for a non-technical audience."
+context — desc: "Background information the model needs." placeholder: "e.g., This is an internal engineering postmortem; the audience is the executive team."
+input — desc: "The actual content to process." placeholder: "Paste or type the content here."
+examples — desc: "Few-shot examples of desired behavior." placeholder: "Input: ...\nOutput: ..."
+output_format — desc: "How the response should be structured." placeholder: "e.g., Three bullet points, each under 20 words."
+constraints — desc: "Rules, limits, or things to avoid." placeholder: "e.g., Do not include jargon. Stay under 200 words."
+role — desc: "The persona the model should adopt." placeholder: "e.g., You are an experienced technical editor."
+
+Default templates:
+
+"Basic" → instruction, input
+"Standard" → instruction, context, output_format
+"Few-shot" → instruction, examples, input
+"Full" → role, instruction, context, input, constraints, output_format
+</default_content>
+
+<ui_layout>
+A single-window desktop app with three main regions:
+1. Left sidebar (~220px wide) — Template picker.
+
+App title at top: "Prompt Builder"
+Scrollable list of all templates; clicking one loads it into the main editor.
+The active template is highlighted.
+"+ New Template" button at the bottom of the list.
+"Manage Tags" button below that, opens the tag manager modal.
+
+2. Main editor (center, flex-grow).
+
+Top: active template's name, with an edit icon and a small menu (•••) exposing: Rename, Duplicate, Delete (delete disabled for built-in templates), Edit Tags (reorder/add/remove tags in this template).
+Below: one input section per tag in the template's order. Each section has:
+
+Label: the tag name in monospace font (e.g., instruction).
+Helper text: the tag's description in smaller, muted text.
+A multi-line textarea, ~4 rows default, resizable vertically, with the tag's placeholder shown when empty.
+
+
+Bottom toolbar (sticky):
+
+"Generate & Copy" button (primary, prominent). Keyboard shortcut: Ctrl+Enter.
+"Clear All" button (secondary).
+A "Preview" toggle that expands a collapsible panel above showing the live concatenated output.
+
+
+
+3. No top menu bar needed beyond the standard Electron window chrome. Keep it minimal.
+</ui_layout>
+<tag_manager>
+A modal opened from the "Manage Tags" sidebar button.
+
+List view of all tags, with built-ins marked with a subtle badge.
+For each tag: name, description, and action buttons (Edit, Hide/Show for built-ins, Delete for user-created).
+"+ New Tag" button opens a form: name (validated), description, placeholder.
+Editing user-created tags works identically.
+Deleting a user-created tag: if it's used in any template, show a confirmation listing which templates reference it. On delete, remove it from those templates.
+
+Tag name validation:
+
+Lowercase alphanumeric and underscores only (/^[a-z][a-z0-9_]*$/).
+Must be unique (case-insensitive).
+Reject empty, names starting with a digit, and names containing angle brackets, spaces, or special characters.
+Show inline validation errors.
+</tag_manager>
+
+<template_manager>
+Creating a new template (from "+ New Template"):
+
+Modal with: template name, optional description, and an "Add Tag" picker.
+The picker shows all visible tags; selecting one appends it to the template's tag list.
+Tags in the list can be reordered via drag-and-drop and removed with an X button.
+Same tag can be added multiple times.
+Save creates the template and selects it in the sidebar.
+
+Editing an existing template uses the same modal, pre-filled. Built-in templates can be edited (their tag list and name), but cannot be deleted — provide a "Reset to default" option instead.
+Duplicating: copies the template with " (copy)" appended to the name; the copy is user-created and fully deletable.
+</template_manager>
+<generate_behavior>
+When the user clicks "Generate & Copy" (or presses Ctrl+Enter):
+
+For each input section in the active template, in order:
+
+Trim the input value.
+If the value is empty, skip that tag entirely (do not emit empty <tag></tag> pairs).
+Otherwise, emit <tagname>\n{user content}\n</tagname> followed by a single blank line.
+
+
+Concatenate all sections into the final string. Trim trailing whitespace.
+Write the result to the system clipboard via Electron's clipboard.writeText().
+Show a transient toast notification at the bottom of the window: "Copied to clipboard" — auto-dismisses in 2 seconds.
+
+If all inputs are empty, show a different toast: "Nothing to copy — fill in at least one field."
+The Preview panel renders the same output live as the user types, with the tag names in a distinct color from the content for readability.
+Example final output for the "Standard" template with all fields filled:
+<instruction>
+Summarize the document below for a non-technical audience.
+</instruction>
+
+<context>
+This is an internal engineering postmortem; the audience is the executive team.
+</context>
+
+<output_format>
+Three bullet points, each under 20 words.
+</output_format>
+</generate_behavior>
+<persistence>
+Store all data in a single JSON file at Electron's `app.getPath('userData')` directory (on Windows this resolves to `%APPDATA%\prompt-builder\data.json`).
+Schema:
+json{
+  "version": 1,
+  "tags": [
+    {
+      "id": "uuid",
+      "name": "instruction",
+      "description": "What you want the model to do.",
+      "placeholder": "e.g., Summarize...",
+      "isBuiltIn": true,
+      "isHidden": false
+    }
+  ],
+  "templates": [
+    {
+      "id": "uuid",
+      "name": "Standard",
+      "description": "",
+      "tagIds": ["uuid1", "uuid2", "uuid3"],
+      "isBuiltIn": true
+    }
+  ],
+  "preferences": {
+    "lastTemplateId": "uuid",
+    "drafts": {
+      "templateId": { "tagId": "draft text", ... }
+    }
+  }
+}
+Behavior:
+
+On first launch, write the default tags and templates from <default_content>.
+Drafts: as the user types, auto-save input box contents to preferences.drafts[templateId][tagId] (debounced ~500ms). Restore on reopen.
+Save writes are debounced and atomic (write to data.json.tmp, then rename).
+If the data file is corrupt or unreadable, log the error, back it up to data.json.broken.{timestamp}, and reseed with defaults rather than crashing.
+</persistence>
+
+
+<packaging>
+Use electron-builder configured for Windows targets only.
+package.json build config should produce:
+
+An NSIS installer (.exe) — installs to Program Files, creates Start Menu entry.
+A portable .exe — single-file, runs without installation.
+
+Output goes to a dist/ or release/ folder.
+The build should work on a developer's Windows 11 machine with npm run build (or equivalent). No code signing — unsigned builds are fine. Document in the README that Windows SmartScreen will warn on first run and how users should click "More info → Run anyway."
+Do not configure auto-updates. Do not configure cross-platform builds for Mac/Linux. Windows only.
+App metadata:
+
+Product name: "Prompt Builder"
+App ID: com.promptbuilder.app (or similar reverse-DNS string)
+Icon: include a placeholder .ico file; the user can swap it later.
+</packaging>
+
+
+<constraints>
+- Fully local. No network calls of any kind. No telemetry, no analytics, no crash reporting services, no auto-update checks.
+- No accounts, no cloud sync.
+- Tag names are inserted into output exactly as authored. Do not auto-escape or transform the user's body content — they're responsible for knowing what they're pasting downstream.
+- Keep dependencies minimal. No heavyweight UI libraries beyond Tailwind. No Redux unless genuinely needed (prefer Zustand or React state).
+- Window starts at a reasonable default size (~1100×750), remembers size and position between launches.
+- Render on the main process correctly: use Electron's `contextIsolation: true` and a preload script; do not enable `nodeIntegration` in the renderer. Expose clipboard and persistence operations via IPC.
+</constraints>
+<keyboard_shortcuts>
+
+Ctrl+Enter — Generate & Copy
+Ctrl+N — New Template
+Ctrl+L — Clear All inputs in the active template
+Ctrl+, — Open Tag Manager
+Esc — Close any open modal
+</keyboard_shortcuts>
+
+<nice_to_haves>
+Implement if straightforward, but not required:
+
+Dark mode (system-preference detection, toggle in a small settings menu).
+Export/import the full data.json from a menu, so users can back up or share their tag/template library.
+Syntax-style highlighting in the Preview panel (tag names in a different color from content).
+Visual feedback (border flash) on the textarea(s) that contributed to a successful copy.
+</nice_to_haves>
+
+<deliverables>
+1. A working Electron + React + TypeScript project that builds and runs with `npm install` and `npm run dev`.
+2. A `npm run build` command that produces a Windows NSIS installer and a portable `.exe` in `dist/` (or `release/`).
+3. A README.md covering:
+   - Prerequisites (Node.js version).
+   - `npm install`, `npm run dev`, `npm run build` instructions.
+   - Where the data file lives (`%APPDATA%\prompt-builder\data.json`).
+   - The SmartScreen warning users will see and how to bypass it.
+   - A short "How to use" section.
+4. Seeded defaults working on first launch.
+5. All persistence, clipboard, and IPC working end-to-end.
+Build the simplest version that satisfies the spec. Do not add features not listed here. Prioritize correctness and a clean UI over feature breadth.
+</deliverables>
