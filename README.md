@@ -4,6 +4,11 @@ An offline **XML prompt builder** for Windows. Compose structured, tag-based pro
 
 Pick a template, fill the inputs, hit **Generate & Copy**, paste anywhere. No accounts, no network calls, no telemetry — your prompts never leave your machine.
 
+## Demo
+https://github.com/user-attachments/assets/1ab9aebc-5fa9-4442-8736-6bd78feac116
+
+
+
 ## Download
 
 Grab a prebuilt Windows binary from the [latest release](https://github.com/jonathanjschen913/prompt_builder/releases/latest):
