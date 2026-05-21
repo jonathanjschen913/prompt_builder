@@ -34,11 +34,20 @@ export interface Preferences {
   theme: ThemePreference;
 }
 
+export interface SavedPromptTagSnapshot {
+  id: string;
+  name: string;
+  description: string;
+  placeholder: string;
+}
+
 export interface SavedPrompt {
   id: string;
   name: string;
   templateId: string;
   templateName: string;
+  templateDescription: string;
+  tagSnapshots: SavedPromptTagSnapshot[];
   drafts: Record<string, string>;
   output: string;
   createdAt: number;

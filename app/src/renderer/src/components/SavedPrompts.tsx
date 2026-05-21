@@ -63,11 +63,16 @@ export function SavedPrompts({ open, onClose }: SavedPromptsProps) {
     if (result.kind === 'restored') {
       toast(`Loaded "${prompt.name}"`, 'success');
       onClose();
-    } else if (result.kind === 'template_missing') {
-      void window.api.writeClipboard(prompt.output).then(
-        () => toast(`Template was deleted — copied output of "${prompt.name}" to clipboard`, 'warn'),
-        () => toast('Template was deleted and copy failed', 'error')
+    } else if (result.kind === 'reconstructed') {
+      const tagsPart =
+        result.createdTagCount > 0
+          ? `, ${result.createdTagCount} missing tag${result.createdTagCount === 1 ? '' : 's'} recreated`
+          : '';
+      toast(
+        `Loaded "${prompt.name}" — rebuilt template "${result.newTemplate.name}"${tagsPart}`,
+        'success'
       );
+      onClose();
     } else {
       toast('Saved prompt not found', 'error');
     }
@@ -148,8 +153,11 @@ export function SavedPrompts({ open, onClose }: SavedPromptsProps) {
                             <PencilIcon width={12} height={12} />
                           </button>
                           {!exists && (
-                            <span className="rounded-sm bg-amber-100 px-1 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
-                              template gone
+                            <span
+                              className="rounded-sm bg-amber-100 px-1 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                              title="Original template was deleted; loading will recreate it."
+                            >
+                              will rebuild
                             </span>
                           )}
                         </div>
@@ -164,9 +172,12 @@ export function SavedPrompts({ open, onClose }: SavedPromptsProps) {
                       <button
                         type="button"
                         onClick={() => handleLoad(prompt)}
-                        disabled={!exists}
-                        title={exists ? 'Restore drafts into the editor' : 'Original template was deleted'}
-                        className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                        title={
+                          exists
+                            ? 'Restore drafts into the editor (Ctrl+Z to undo)'
+                            : 'Recreate the template and restore drafts'
+                        }
+                        className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                       >
                         Load
                       </button>

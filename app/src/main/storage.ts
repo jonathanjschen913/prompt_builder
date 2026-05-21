@@ -49,6 +49,13 @@ function normalize(data: AppData): AppData {
   }
   if (!Array.isArray(data.savedPrompts)) {
     data.savedPrompts = [];
+  } else {
+    data.savedPrompts = data.savedPrompts.map((p) => ({
+      ...p,
+      templateDescription:
+        typeof p.templateDescription === 'string' ? p.templateDescription : '',
+      tagSnapshots: Array.isArray(p.tagSnapshots) ? p.tagSnapshots : [],
+    }));
   }
   return data;
 }

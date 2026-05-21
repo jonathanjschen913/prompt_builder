@@ -1,5 +1,12 @@
 import { create } from 'zustand';
-import type { AppData, SavedPrompt, Tag, Template, ThemePreference } from '@shared/types';
+import type {
+  AppData,
+  SavedPrompt,
+  SavedPromptTagSnapshot,
+  Tag,
+  Template,
+  ThemePreference,
+} from '@shared/types';
 import { generatePrompt } from './lib/generate';
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -49,7 +56,12 @@ export interface AttachByNameResult {
 
 export type LoadSavedPromptResult =
   | { kind: 'restored'; prompt: SavedPrompt }
-  | { kind: 'template_missing'; prompt: SavedPrompt }
+  | {
+      kind: 'reconstructed';
+      prompt: SavedPrompt;
+      newTemplate: Template;
+      createdTagCount: number;
+    }
   | { kind: 'not_found' };
 
 export interface AppState {
@@ -114,6 +126,22 @@ function defaultSavedPromptName(templateName: string, existing: SavedPrompt[]): 
   const taken = new Set(existing.map((p) => p.name.toLowerCase()));
   while (taken.has(`${templateName.toLowerCase()} ${n}`)) n++;
   return `${templateName} ${n}`;
+}
+
+/**
+ * Recover (tagName, content) pairs from a prompt's rendered output text, in
+ * order. Used as a fallback for legacy saved prompts that didn't capture
+ * tagSnapshots at save time — the output is the only structured signal we
+ * still have, and its blocks were emitted in template position order.
+ */
+function parseOutputForFallback(output: string): { name: string; content: string }[] {
+  const out: { name: string; content: string }[] = [];
+  const re = /<([a-z][a-z0-9_]*)>\n([\s\S]*?)\n<\/\1>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(output)) !== null) {
+    out.push({ name: m[1]!, content: m[2]! });
+  }
+  return out;
 }
 
 function schedulePersist(getState: () => AppState): void {
@@ -632,12 +660,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     const perTpl = s.drafts[tpl.id] ?? {};
     const { output } = generatePrompt(tpl, tagsById, perTpl);
     if (!output) return null;
+    const tagSnapshots: SavedPromptTagSnapshot[] = tpl.tagIds.map((tid) => {
+      const tag = tagsById.get(tid);
+      return {
+        id: tid,
+        name: tag?.name ?? '',
+        description: tag?.description ?? '',
+        placeholder: tag?.placeholder ?? '',
+      };
+    });
     const now = Date.now();
     const prompt: SavedPrompt = {
       id: uuid(),
       name: defaultSavedPromptName(tpl.name, s.savedPrompts),
       templateId: tpl.id,
       templateName: tpl.name,
+      templateDescription: tpl.description,
+      tagSnapshots,
       drafts: { ...perTpl },
       output,
       createdAt: now,
@@ -668,21 +707,122 @@ export const useAppStore = create<AppState>((set, get) => ({
     const s = get();
     const prompt = s.savedPrompts.find((p) => p.id === id);
     if (!prompt) return { kind: 'not_found' };
-    const tpl = s.templates.find((t) => t.id === prompt.templateId);
-    if (!tpl) return { kind: 'template_missing', prompt };
+
+    const existing = s.templates.find((t) => t.id === prompt.templateId);
+    if (existing) {
+      const undoSnapshot = {
+        tagIds: [...existing.tagIds],
+        drafts: { ...(s.drafts[existing.id] ?? {}) },
+        tags: s.tags,
+      };
+      set((st) => {
+        const drafts = { ...st.drafts };
+        if (Object.keys(prompt.drafts).length === 0) delete drafts[existing.id];
+        else drafts[existing.id] = { ...prompt.drafts };
+        return {
+          activeTemplateId: existing.id,
+          drafts,
+          undoStack: pushUndoEntry(st.undoStack, {
+            description: `Load "${prompt.name}"`,
+            templateId: existing.id,
+            snapshot: undoSnapshot,
+          }),
+          redoStack: [],
+        };
+      });
+      schedulePersist(get);
+      return { kind: 'restored', prompt };
+    }
+
+    // Template was deleted — reconstruct a logically equivalent one.
+    // Source of truth for the structure: tagSnapshots if the save captured
+    // them (v0.1.6+), else fall back to parsing the rendered output.
+    let snapshotsToUse: SavedPromptTagSnapshot[];
+    let draftsToUse: Record<string, string>;
+    if (prompt.tagSnapshots.length > 0) {
+      snapshotsToUse = prompt.tagSnapshots;
+      draftsToUse = { ...prompt.drafts };
+    } else {
+      const parsed = parseOutputForFallback(prompt.output);
+      snapshotsToUse = parsed.map((p) => ({
+        id: '',
+        name: p.name,
+        description: '',
+        placeholder: '',
+      }));
+      // Output blocks are dense (only filled positions appear), so the new
+      // drafts get re-indexed 0..N-1 to match the new tight template.
+      draftsToUse = {};
+      parsed.forEach((p, idx) => {
+        draftsToUse[String(idx)] = p.content;
+      });
+    }
+
+    if (snapshotsToUse.length === 0) {
+      return { kind: 'not_found' };
+    }
+
+    const tagsByName = new Map(s.tags.map((t) => [t.name.toLowerCase(), t]));
+    const newTagsBuffer: Tag[] = [];
+    const resolvedTagIds: string[] = [];
+    snapshotsToUse.forEach((snap, idx) => {
+      const fallbackName = `tag_${idx + 1}`;
+      const rawName = snap.name || fallbackName;
+      const existingTag = tagsByName.get(rawName.toLowerCase());
+      if (existingTag) {
+        resolvedTagIds.push(existingTag.id);
+        return;
+      }
+      const newTag: Tag = {
+        id: uuid(),
+        name: rawName,
+        description: snap.description,
+        placeholder: snap.placeholder,
+        isBuiltIn: false,
+        isHidden: false,
+      };
+      newTagsBuffer.push(newTag);
+      tagsByName.set(newTag.name.toLowerCase(), newTag);
+      resolvedTagIds.push(newTag.id);
+    });
+
+    const takenNames = new Set(s.templates.map((t) => t.name.toLowerCase()));
+    const base = prompt.templateName || 'Restored template';
+    let candidate = base;
+    if (takenNames.has(candidate.toLowerCase())) {
+      candidate = `${base} (restored)`;
+      let n = 2;
+      while (takenNames.has(candidate.toLowerCase())) {
+        n++;
+        candidate = `${base} (restored ${n})`;
+      }
+    }
+    const newTemplate: Template = {
+      id: uuid(),
+      name: candidate,
+      description: prompt.templateDescription,
+      tagIds: resolvedTagIds,
+      isBuiltIn: false,
+    };
+
     set((st) => {
       const drafts = { ...st.drafts };
-      if (Object.keys(prompt.drafts).length === 0) delete drafts[tpl.id];
-      else drafts[tpl.id] = { ...prompt.drafts };
+      if (Object.keys(draftsToUse).length === 0) delete drafts[newTemplate.id];
+      else drafts[newTemplate.id] = draftsToUse;
       return {
-        activeTemplateId: tpl.id,
+        tags: [...st.tags, ...newTagsBuffer],
+        templates: [...st.templates, newTemplate],
+        activeTemplateId: newTemplate.id,
         drafts,
-        undoStack: st.undoStack.filter((e) => e.templateId !== tpl.id),
-        redoStack: st.redoStack.filter((e) => e.templateId !== tpl.id),
       };
     });
     schedulePersist(get);
-    return { kind: 'restored', prompt };
+    return {
+      kind: 'reconstructed',
+      prompt,
+      newTemplate,
+      createdTagCount: newTagsBuffer.length,
+    };
   },
 
   replaceAll(data) {
